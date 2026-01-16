@@ -1,0 +1,17 @@
+# Binaries
+agent-devp2p
+
+# OS specific
+.DS_Store
+Thumbs.db
+
+# Go
+*.exe
+*.test
+*.out
+vendor/
+
+# IDE
+.idea/
+.vscode/
+*.swp
