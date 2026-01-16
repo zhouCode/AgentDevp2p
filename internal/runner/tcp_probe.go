@@ -44,6 +44,7 @@ type TCPProbeParams struct {
 	CaseID      string
 	Timeout     time.Duration
 	Concurrency int
+	Retries     int
 	RecordDir   string
 }
 
@@ -65,6 +66,9 @@ func RunTCPProbe(ctx context.Context, p TCPProbeParams, targets []TCPProbeTarget
 	}
 	if p.Concurrency <= 0 {
 		p.Concurrency = 1
+	}
+	if p.Retries < 0 {
+		p.Retries = 0
 	}
 	if onResult == nil {
 		onResult = func(TCPSessionRecord) {}
@@ -112,25 +116,42 @@ func probeOne(ctx context.Context, p TCPProbeParams, t TCPProbeTarget) TCPSessio
 		ErrorClass: string(ErrorClassOK),
 	}
 
-	sessCtx, cancel := context.WithTimeout(ctx, p.Timeout)
-	defer cancel()
+	var lastErr error
+	var lastClass ErrorClass
+	for attempt := 0; attempt <= p.Retries; attempt++ {
+		sessCtx, cancel := context.WithTimeout(ctx, p.Timeout)
 
-	r.DialStart = time.Now().UTC().Format(time.RFC3339Nano)
-	dialer := net.Dialer{}
-	conn, err := dialer.DialContext(sessCtx, "tcp", t.Endpoint)
-	r.DialEnd = time.Now().UTC().Format(time.RFC3339Nano)
+		r.DialStart = time.Now().UTC().Format(time.RFC3339Nano)
+		dialer := net.Dialer{}
+		conn, err := dialer.DialContext(sessCtx, "tcp", t.Endpoint)
+		r.DialEnd = time.Now().UTC().Format(time.RFC3339Nano)
+
+		if err == nil {
+			_ = conn.Close()
+			cancel()
+			r.EndTime = time.Now().UTC().Format(time.RFC3339Nano)
+			r.LatencyMS = time.Since(start).Milliseconds()
+			r.OK = true
+			r.ErrorClass = string(ErrorClassOK)
+			r.Error = ""
+			return r
+		}
+
+		lastErr = err
+		lastClass = classifyDialError(sessCtx, err)
+		cancel()
+		if lastClass != ErrorClassDialError && lastClass != ErrorClassTimeout {
+			break
+		}
+	}
 
 	r.EndTime = time.Now().UTC().Format(time.RFC3339Nano)
 	r.LatencyMS = time.Since(start).Milliseconds()
-
-	if err != nil {
-		r.OK = false
-		r.Error = err.Error()
-		r.ErrorClass = string(classifyDialError(sessCtx, err))
-		return r
+	r.OK = false
+	if lastErr != nil {
+		r.Error = lastErr.Error()
 	}
-	_ = conn.Close()
-	r.OK = true
+	r.ErrorClass = string(lastClass)
 	return r
 }
 

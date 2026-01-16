@@ -24,7 +24,7 @@ var targetsParseCommand = &cli.Command{
 	Usage:     "Parses and validates target descriptors",
 	ArgsUsage: "[targets...]",
 	Flags: []cli.Flag{
-		&cli.StringFlag{Name: "file", Usage: "Read targets from file (one per line)"},
+		&cli.StringFlag{Name: "file", Usage: "Read targets from file (one per line, '-' for stdin)"},
 	},
 	Action: targetsParseAction,
 }
@@ -40,17 +40,18 @@ func targetsParseAction(ctx *cli.Context) error {
 	}
 
 	for _, in := range inputs {
-		t, err := targets.Parse(in)
+		t, err := targets.ParseAny(in)
 		if err != nil {
 			_ = out.Event("target", map[string]any{"raw": in, "ok": false, "error": err.Error()})
 			continue
 		}
 		_ = out.Event("target", map[string]any{
-			"raw":  in,
-			"ok":   true,
-			"node": t.NodeString,
-			"tcp":  t.TCPEndpoint,
-			"udp":  t.UDPEndpoint,
+			"raw":       in,
+			"ok":        true,
+			"target_id": t.TargetID,
+			"node":      t.NodeString,
+			"tcp":       t.TCPEndpoint,
+			"udp":       t.UDPEndpoint,
 		})
 	}
 	return nil
@@ -63,11 +64,18 @@ func targetsParseInputs(ctx *cli.Context) ([]string, error) {
 	if filePath == "" {
 		return normalizeNonEmpty(inputs), nil
 	}
-	fd, err := os.Open(filePath)
-	if err != nil {
-		return nil, err
+
+	var fd *os.File
+	var err error
+	if strings.TrimSpace(filePath) == "-" {
+		fd = os.Stdin
+	} else {
+		fd, err = os.Open(filePath)
+		if err != nil {
+			return nil, err
+		}
+		defer fd.Close()
 	}
-	defer fd.Close()
 
 	s := bufio.NewScanner(fd)
 	for s.Scan() {

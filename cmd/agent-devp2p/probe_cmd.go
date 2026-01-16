@@ -31,6 +31,7 @@ var probeTCPCommand = &cli.Command{
 		&cli.StringFlag{Name: "targets-file", Usage: "Read targets from file (one per line, '-' for stdin)"},
 		&cli.DurationFlag{Name: "timeout", Value: 3 * time.Second, Usage: "Per-target dial timeout"},
 		&cli.IntFlag{Name: "concurrency", Value: 6, Usage: "Max concurrent sessions"},
+		&cli.IntFlag{Name: "retries", Value: 0, Usage: "Retries per target on dial_error/timeout"},
 		&cli.StringFlag{Name: "run-id", Usage: "Run identifier (auto if empty)"},
 		&cli.StringFlag{Name: "case-id", Value: "probe.tcp", Usage: "Case identifier"},
 		&cli.StringFlag{Name: "record-dir", Value: "runs", Usage: "Directory for per-target records"},
@@ -58,6 +59,7 @@ func probeTCPAction(ctx *cli.Context) error {
 		CaseID:      caseID,
 		Timeout:     ctx.Duration("timeout"),
 		Concurrency: ctx.Int("concurrency"),
+		Retries:     ctx.Int("retries"),
 		RecordDir:   ctx.String("record-dir"),
 	}
 
