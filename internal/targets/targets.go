@@ -21,6 +21,7 @@ type Target struct {
 	NodeString  string
 	TCPEndpoint string
 	UDPEndpoint string
+	TargetID    string
 }
 
 func Parse(input string) (*Target, error) {
@@ -36,20 +37,33 @@ func Parse(input string) (*Target, error) {
 	if ep, ok := n.UDPEndpoint(); ok {
 		t.UDPEndpoint = ep.String()
 	}
+	id := n.ID()
+	t.TargetID = "node_" + hex.EncodeToString(id[:])
 	return t, nil
 }
 
+func ParseAny(input string) (*Target, error) {
+	if endpoint, err := parseEndpoint(input); err == nil {
+		return &Target{Raw: input, TCPEndpoint: endpoint, TargetID: "tcp_" + sanitizeID(endpoint)}, nil
+	}
+	return Parse(input)
+}
+
+func sanitizeID(s string) string {
+	r := strings.NewReplacer(
+		"/", "_",
+		"\\", "_",
+		":", "_",
+		" ", "_",
+		"\t", "_",
+		"\n", "_",
+	)
+	return r.Replace(s)
+}
+
 func ResolveTCPEndpoint(input string) (string, error) {
-	host, portStr, err := net.SplitHostPort(input)
-	if err == nil {
-		port, err := strconv.Atoi(portStr)
-		if err != nil || port <= 0 || port > 65535 {
-			return "", fmt.Errorf("invalid endpoint %q", input)
-		}
-		if host == "" {
-			return "", fmt.Errorf("invalid endpoint %q", input)
-		}
-		return net.JoinHostPort(host, strconv.Itoa(port)), nil
+	if endpoint, err := parseEndpoint(input); err == nil {
+		return endpoint, nil
 	}
 
 	t, err := Parse(input)
@@ -60,6 +74,21 @@ func ResolveTCPEndpoint(input string) (string, error) {
 		return "", errors.New("node has no TCP endpoint")
 	}
 	return t.TCPEndpoint, nil
+}
+
+func parseEndpoint(input string) (string, error) {
+	host, portStr, err := net.SplitHostPort(input)
+	if err != nil {
+		return "", err
+	}
+	port, err := strconv.Atoi(portStr)
+	if err != nil || port <= 0 || port > 65535 {
+		return "", fmt.Errorf("invalid endpoint %q", input)
+	}
+	if host == "" {
+		return "", fmt.Errorf("invalid endpoint %q", input)
+	}
+	return net.JoinHostPort(host, strconv.Itoa(port)), nil
 }
 
 func parseNode(input string) (*enode.Node, error) {

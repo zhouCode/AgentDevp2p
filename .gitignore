@@ -1,6 +1,10 @@
 # Binaries
 /agent-devp2p
 
+# Run artifacts
+/runs/
+/runs_*/
+
 # OS specific
 .DS_Store
 Thumbs.db
