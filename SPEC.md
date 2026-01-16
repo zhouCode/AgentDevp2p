@@ -101,7 +101,7 @@
 
 | Feature | 状态 | 说明 |
 |---|---|---|
-| Milestone 1: CLI 骨架（复用 devp2p/internal 结构） | [ ] | 子命令、flags、输出格式、基本 help |
+| Milestone 1: CLI 骨架（复用 devp2p/internal 结构） | [x] | 子命令、flags、输出格式、基本 help |
 | Milestone 2: 连接管理（6 目标并发会话） | [ ] | 目标解析、拨号、超时、记录会话事件 |
 | Milestone 3: RLPx 握手差分测试 | [ ] | 对 6 客户端执行同参握手并比对结果 |
 
@@ -128,4 +128,3 @@
 
 - `SPEC.md` 是唯一规格来源；任何行为性变更必须先改 SPEC，再实现。
 - 每次修改 `SPEC.md`，必须伴随一次单独的提交（commit message 需明确版本或变更点）。
-
